@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ENLIGHT TERMINAL</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --glow-color: #00ff88;
+            --bg-color: #0a0a0a;
+            --text-dim: #1a3a2a;
+            --border-color: #0f3;
+            --scanline-opacity: 0.04;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--bg-color);
+            color: var(--glow-color);
+            min-height: 100vh;
+            overflow: hidden;
+            transition: background 1s, color 1s;
+        }
+
+        body.blue-mode {
+            --glow-color: #00cfff;
+            --border-color: #00cfff;
+            background: #050a14;
+        }
+
+        body.pink-mode {
+            --glow-color: #ff69b4;
+            --border-color: #ff69b4;
+            background: #140510;
+        }
+
+        /* Scanline overlay */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            background: repeating-linear-gradient(
+                0deg,
+                rgba(0, 255, 136, var(--scanline-opacity)) 0px,
+                rgba(0, 255, 136, var(--scanline-opacity)) 1px,
+                transparent 1px,
+                transparent 3px
+            );
+            z-index: 9999;
+        }
+
+        /* CRT flicker */
+        @keyframes flicker {
+            0%, 100% { opacity: 1; }
+            92% { opacity: 1; }
+            93% { opacity: 0.8; }
+            94% { opacity: 1; }
+            96% { opacity: 0.9; }
+            97% { opacity: 1; }
+        }
+
+        body {
+            animation: flicker 8s infinite;
+        }
+
+        /* ===== BOOT SCREEN ===== */
+        #boot-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        #boot-screen .boot-text {
+            font-size: 1.2rem;
+            color: var(--glow-color);
+            text-shadow: 0 0 10px var(--glow-color), 0 0 30px var(--glow-color);
+            animation: pulse 2s ease-in-out infinite;
+            letter-spacing: 4px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 0.5; }
+            50% { opacity: 1; }
+        }
+
+        /* ===== TERMINAL ===== */
+        #terminal {
+            display: none;
+            padding: 30px;
+            max-width: 700px;
+            margin: 0 auto;
+            min-height: 100vh;
+        }
+
+        .terminal-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .terminal-header h1 {
+            font-size: 2.2rem;
+            letter-spacing: 10px;
+            color: var(--glow-color);
+            text-shadow: 0 0 20px var(--glow-color), 0 0 60px var(--glow-color);
+            margin-bottom: 8px;
+        }
+
+        .terminal-header .status {
+            font-size: 0.75rem;
+            color: var(--glow-color);
+            opacity: 0.5;
+            letter-spacing: 2px;
+        }
+
+        .input-section {
+            margin-bottom: 20px;
+        }
+
+        .input-section label {
+            display: block;
+            font-size: 0.85rem;
+            opacity: 0.6;
+            margin-bottom: 8px;
+            letter-spacing: 2px;
+        }
+
+        .input-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .input-row .prompt {
+            font-size: 1.2rem;
+            color: var(--glow-color);
+            text-shadow: 0 0 8px var(--glow-color);
+        }
+
+        #key-input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            border-bottom: 1px solid var(--glow-color);
+            color: var(--glow-color);
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 1.2rem;
+            outline: none;
+            caret-color: var(--glow-color);
+            text-shadow: 0 0 5px var(--glow-color);
+            padding: 4px 0;
+            direction: ltr;
+            text-align: left;
+        }
+
+        #key-input::placeholder {
+            color: var(--glow-color);
+            opacity: 0.2;
+        }
+
+        /* Blinking cursor */
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+
+        .cursor-blink {
+            animation: blink 1s step-end infinite;
+            font-size: 1.2rem;
+        }
+
+        /* ===== LIVE STREAM / DATA PANEL ===== */
+        #live-stream-container {
+            border: 1px solid var(--border-color);
+            padding: 20px;
+            margin-top: 25px;
+            min-height: 80px;
+            position: relative;
+            background: rgba(0, 255, 136, 0.02);
+            transition: border-color 0.5s, box-shadow 0.5s, background 0.5s;
+        }
+
+        #live-stream-container .data-label {
+            position: absolute;
+            top: -10px;
+            left: 15px;
+            background: var(--bg-color);
+            padding: 0 8px;
+            font-size: 0.7rem;
+            letter-spacing: 3px;
+            opacity: 0.4;
+            direction: ltr;
+        }
+
+        #live-stream-content {
+            font-size: 1rem;
+            line-height: 1.8;
+            word-break: break-all;
+            letter-spacing: 2px;
+            color: var(--glow-color);
+            text-shadow: 0 0 5px var(--glow-color);
+            direction: ltr;
+            text-align: left;
+        }
+
+        #live-stream-container.decrypted-success {
+            border-color: var(--glow-color);
+            box-shadow: 0 0 20px var(--glow-color), inset 0 0 20px rgba(0, 255, 136, 0.05);
+            background: rgba(0, 255, 136, 0.05);
+        }
+
+        #live-stream-container.decrypted-success #live-stream-content {
+            direction: rtl;
+            text-align: center;
+            word-break: normal;
+            font-size: 1.3rem;
+            line-height: 2;
+        }
+
+        /* ===== STARS ANIMATION ===== */
+        .star {
+            position: fixed;
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 9998;
+            animation: starFall 2s linear forwards;
+        }
+
+        @keyframes starFall {
+            0% { transform: translateY(0) scale(1); opacity: 1; }
+            100% { transform: translateY(100vh) scale(0); opacity: 0; }
+        }
+
+        /* ===== HEARTS ANIMATION ===== */
+        .heart-particle {
+            position: fixed;
+            font-size: 1.5rem;
+            pointer-events: none;
+            z-index: 9998;
+            animation: heartFloat 3s ease-out forwards;
+        }
+
+        @keyframes heartFloat {
+            0% { transform: translateY(0) scale(0.5); opacity: 1; }
+            100% { transform: translateY(-200px) scale(1.5); opacity: 0; }
+        }
+
+        /* ===== GLITCH TEXT ===== */
+        @keyframes glitch {
+            0%, 100% { text-shadow: 0 0 5px var(--glow-color); }
+            20% { text-shadow: -2px 0 #ff0000, 2px 0 #00ffff; }
+            40% { text-shadow: 2px 0 #ff0000, -2px 0 #00ffff; }
+            60% { text-shadow: 0 0 10px var(--glow-color); }
+        }
+
+        .glitch-text {
+            animation: glitch 0.3s ease-in-out;
+        }
+
+        /* ===== LOG PANEL ===== */
+        #log-panel {
+            margin-top: 25px;
+            font-size: 0.65rem;
+            opacity: 0.25;
+            letter-spacing: 1px;
+            max-height: 80px;
+            overflow: hidden;
+            direction: ltr;
+            text-align: left;
+        }
+
+        #log-panel .log-entry {
+            margin-bottom: 2px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 600px) {
+            #terminal { padding: 20px 15px; }
+            .terminal-header h1 { font-size: 1.4rem; letter-spacing: 5px; }
+            #key-input { font-size: 1rem; }
+            #live-stream-content { font-size: 0.9rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- BOOT SCREEN -->
+    <div id="boot-screen" onclick="bootSystem()">
+        <div class="boot-text">[ לחץ להפעלה ]</div>
+    </div>
+
+    <!-- TERMINAL -->
+    <div id="terminal">
+        <div class="terminal-header">
+            <h1>ENLIGHT TERMINAL</h1>
+            <div class="status">סטטוס מערכת // יציב.</div>
+        </div>
+
+        <div class="input-section">
+            <label>> הזן רצף הצפנה_</label>
+            <div class="input-row">
+                <span class="prompt">></span>
+                <input type="text" id="key-input" autocomplete="off" spellcheck="false" placeholder="">
+                <span class="cursor-blink">█</span>
+            </div>
+        </div>
+
+        <div id="live-stream-container">
+            <div class="data-label">DATA //</div>
+            <div id="live-stream-content">...</div>
+        </div>
+
+        <div id="log-panel"></div>
+    </div>
+
+    <script>
+        // ===========================
+        // PASSWORDS & SECRETS CONFIG
+        // ===========================
+        // Add your passwords and their responses here.
+        // Each key is a password (case-sensitive).
+        // Fields:
+        //   secret_content: HTML string shown on success
+        //   animation: "none" | "blue_stars" | "heart"
+        const SECRETS = {
+            "1234": {
+                secret_content: "<div style='font-size:2rem;'>Hello World! 🌍</div><div style='margin-top:10px;'>ברוכים הבאים למערכת</div>",
+                animation: "blue_stars"
+            }
+            // Add more passwords here, e.g.:
+            // "BIRTHDAY": {
+            //     secret_content: "<div style='font-size:2rem;'>🎂 Happy Birthday Jon! 🎉</div>",
+            //     animation: "heart"
+            // },
+        };
+
+        // ===========================
+        // AUDIO ENGINE
+        // ===========================
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+
+        function playTone(freq, type, duration, detune = 0, volume = 0.1) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = type;
+            osc.frequency.value = freq;
+            osc.detune.value = detune;
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+            osc.start();
+            osc.stop(audioCtx.currentTime + duration);
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            if (type === 'key') {
+                playTone(150 + Math.random() * 50, 'sawtooth', 0.05);
+            } else if (type === 'boot') {
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                const now = audioCtx.currentTime;
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(40, now);
+                osc.frequency.linearRampToValueAtTime(120, now + 2.0);
+                gain.gain.setValueAtTime(0, now);
+                gain.gain.linearRampToValueAtTime(0.3, now + 1.0);
+                gain.gain.linearRampToValueAtTime(0, now + 2.5);
+                osc.start(now);
+                osc.stop(now + 2.5);
+            } else if (type === 'success') {
+                playTone(800, 'sine', 0.1);
+                setTimeout(() => playTone(1200, 'sine', 0.2), 150);
+            }
+        }
+
+        function playHeartSound() {
+            if (!audioCtx) return;
+            playTone(180, 'triangle', 0.09, 0, 0.06);
+            setTimeout(() => playTone(180, 'triangle', 0.11, 0, 0.06), 120);
+            const notes = [880, 1108, 1318, 1760];
+            notes.forEach((f, i) => {
+                setTimeout(() => playTone(f, 'sine', 0.5, 0, 0.05), 280 + i * 90);
+            });
+            setTimeout(() => playTone(1760, 'sine', 0.6, 0, 0.025), 760);
+        }
+
+        function playBlueStarsSound() {
+            if (!audioCtx) return;
+            const glitchSteps = [
+                [1500, 'sawtooth', 0.05, 0.08],
+                [820, 'square', 0.04, 0.06],
+                [2000, 'sawtooth', 0.04, 0.07],
+                [1150, 'triangle', 0.04, 0.06],
+                [1750, 'square', 0.05, 0.07]
+            ];
+            glitchSteps.forEach((s, i) => {
+                setTimeout(() => playTone(s[0], s[1], s[2], 0, s[3]), i * 45);
+            });
+            setTimeout(() => {
+                playTone(1760, 'sine', 0.7, 0, 0.06);
+                playTone(2640, 'sine', 0.7, 0, 0.035);
+                playTone(880, 'triangle', 0.55, 0, 0.04);
+            }, 280);
+        }
+
+        // ===========================
+        // VISUAL EFFECTS
+        // ===========================
+        function spawnStars() {
+            for (let i = 0; i < 30; i++) {
+                setTimeout(() => {
+                    const star = document.createElement('div');
+                    star.className = 'star';
+                    star.style.left = Math.random() * 100 + 'vw';
+                    star.style.top = '-5px';
+                    star.style.background = `hsl(${190 + Math.random() * 30}, 100%, ${60 + Math.random() * 30}%)`;
+                    star.style.boxShadow = `0 0 6px ${star.style.background}`;
+                    star.style.width = (2 + Math.random() * 3) + 'px';
+                    star.style.height = star.style.width;
+                    document.body.appendChild(star);
+                    setTimeout(() => star.remove(), 2500);
+                }, i * 80);
+            }
+        }
+
+        function spawnHearts() {
+            for (let i = 0; i < 15; i++) {
+                setTimeout(() => {
+                    const heart = document.createElement('div');
+                    heart.className = 'heart-particle';
+                    heart.textContent = '❤';
+                    heart.style.left = Math.random() * 100 + 'vw';
+                    heart.style.bottom = '-30px';
+                    heart.style.color = `hsl(${330 + Math.random() * 30}, 100%, 65%)`;
+                    document.body.appendChild(heart);
+                    setTimeout(() => heart.remove(), 3500);
+                }, i * 150);
+            }
+        }
+
+        // ===========================
+        // BOOT
+        // ===========================
+        window.bootSystem = function () {
+            initAudio();
+            playSound('boot');
+            document.getElementById('boot-screen').style.display = 'none';
+            document.getElementById('terminal').style.display = 'block';
+            setTimeout(() => input.focus(), 500);
+        };
+
+        // ===========================
+        // TERMINAL LOGIC
+        // ===========================
+        const input = document.getElementById('key-input');
+        const liveStream = document.getElementById('live-stream-content');
+        const container = document.getElementById('live-stream-container');
+        const logPanel = document.getElementById('log-panel');
+        let debounceTimer;
+        const CHARS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+        const GLITCH_CHARS = '!@#$%^&*';
+
+        function addLog(text) {
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const time = new Date().toLocaleTimeString('en-GB');
+            entry.textContent = `[${time}] ${text}`;
+            logPanel.prepend(entry);
+            // Keep only last 5 entries
+            while (logPanel.children.length > 5) {
+                logPanel.removeChild(logPanel.lastChild);
+            }
+        }
+
+        input.addEventListener('keydown', () => playSound('key'));
+
+        input.addEventListener('input', () => {
+            const val = input.value.trim();
+
+            // Reset state
+            container.classList.remove('decrypted-success');
+            document.body.classList.remove('blue-mode', 'pink-mode');
+
+            if (val.length === 0) {
+                liveStream.innerText = '...';
+                return;
+            }
+
+            // Show random "decryption" characters
+            const len = Math.min(val.length * 2, 40);
+            liveStream.innerText = Array(len)
+                .fill(0)
+                .map(() => CHARS.charAt(Math.floor(Math.random() * CHARS.length)))
+                .join('');
+
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                if (val.length < 1) return;
+                liveStream.innerText = '>> DECRYPTING <<';
+
+                setTimeout(() => {
+                    // Look up the password in SECRETS
+                    const secret = SECRETS[val];
+
+                    if (secret) {
+                        // SUCCESS
+                        liveStream.innerHTML = secret.secret_content;
+                        container.classList.add('decrypted-success');
+
+                        if (secret.animation === 'blue_stars') {
+                            document.body.classList.add('blue-mode');
+                            playBlueStarsSound();
+                            spawnStars();
+                        } else if (secret.animation === 'heart') {
+                            document.body.classList.add('pink-mode');
+                            playHeartSound();
+                            spawnHearts();
+                        } else {
+                            playSound('success');
+                        }
+
+                        addLog(`ACCESS GRANTED — key: ${val}`);
+                    } else {
+                        // FAILURE
+                        liveStream.innerText = Array(20)
+                            .fill(0)
+                            .map(() => GLITCH_CHARS.charAt(Math.floor(Math.random() * GLITCH_CHARS.length)))
+                            .join('');
+                        liveStream.classList.add('glitch-text');
+                        setTimeout(() => liveStream.classList.remove('glitch-text'), 300);
+
+                        addLog(`ACCESS DENIED — key: ${val}`);
+                    }
+                }, 500);
+            }, 600);
+        });
+
+        // Re-focus input when clicking terminal area
+        document.getElementById('terminal').addEventListener('click', () => input.focus());
+    </script>
+</body>
+</html>
