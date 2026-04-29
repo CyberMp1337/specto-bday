@@ -331,23 +331,18 @@
 
     <script>
         // ===========================
-        // PASSWORDS & SECRETS CONFIG
+        // OBFUSCATION
         // ===========================
-        // Add your passwords and their responses here.
-        // Each key is a password (case-sensitive).
-        // Fields:
-        //   secret_content: HTML string shown on success
-        //   animation: "none" | "blue_stars" | "heart"
+        function _h(s){let h=5381;for(let i=0;i<s.length;i++){h=((h<<5)+h)^s.charCodeAt(i);}return(h>>>0).toString(36);}
+
+        // ===========================
+        // SECRETS CONFIG (keys are hashed)
+        // ===========================
         const SECRETS = {
-            "1234": {
+            "yhvold": {
                 secret_content: "<div style='font-size:2rem;'>Hello World! 🌍</div><div style='margin-top:10px;'>ברוכים הבאים למערכת</div>",
                 animation: "blue_stars"
             }
-            // Add more passwords here, e.g.:
-            // "BIRTHDAY": {
-            //     secret_content: "<div style='font-size:2rem;'>🎂 Happy Birthday Jon! 🎉</div>",
-            //     animation: "heart"
-            // },
         };
 
         // ===========================
@@ -524,8 +519,8 @@
                 liveStream.innerText = '>> DECRYPTING <<';
 
                 setTimeout(() => {
-                    // Look up the password in SECRETS
-                    const secret = SECRETS[val];
+                    // Look up the password in SECRETS (hashed)
+                    const secret = SECRETS[_h(val)];
 
                     if (secret) {
                         // SUCCESS
